@@ -14,7 +14,7 @@ def safe_path_for_project(path: str) -> pathlib.Path:
     return p
 
 
-@tool
+@tool("repo_browser.write_file")  # Add this
 def write_file(path: str, content: str) -> str:
     """Writes content to a file at the specified path within the project root."""
     p = safe_path_for_project(path)
@@ -24,7 +24,7 @@ def write_file(path: str, content: str) -> str:
     return f"WROTE:{p}"
 
 
-@tool
+@tool("repo_browser.read_file")  # Add this
 def read_file(path: str) -> str:
     """Reads content from a file at the specified path within the project root."""
     p = safe_path_for_project(path)
@@ -34,20 +34,21 @@ def read_file(path: str) -> str:
         return f.read()
 
 
-@tool
+@tool("repo_browser.get_current_directory")  # Add this
 def get_current_directory() -> str:
     """Returns the current working directory."""
     return str(PROJECT_ROOT)
 
 
-@tool
-def list_files(directory: str = ".") -> str:
+@tool("repo_browser.list_file")  # Add this
+def list_file(directory: str = ".") -> str:
     """Lists all files in the specified directory within the project root."""
     p = safe_path_for_project(directory)
     if not p.is_dir():
         return f"ERROR: {p} is not a directory"
     files = [str(f.relative_to(PROJECT_ROOT)) for f in p.glob("**/*") if f.is_file()]
     return "\n".join(files) if files else "No files found."
+
 
 @tool
 def run_cmd(cmd: str, cwd: str = None, timeout: int = 30) -> Tuple[int, str, str]:
@@ -57,9 +58,39 @@ def run_cmd(cmd: str, cwd: str = None, timeout: int = 30) -> Tuple[int, str, str
     return res.returncode, res.stdout, res.stderr
 
 
+# ADDED
+@tool("repo_browser.print_tree")
+def print_tree(path: str = ".", depth: int = 3) -> str:
+    """Prints a tree structure of files and directories up to a certain depth."""
+    p = safe_path_for_project(path)
+    if not p.is_dir():
+        return f"ERROR: {p} is not a directory"
+
+    def build_tree(directory, prefix="", current_depth=0):
+        if current_depth >= depth:
+            return []
+
+        contents = []
+        try:
+            items = sorted(directory.iterdir(), key=lambda x: (not x.is_dir(), x.name))
+            for i, item in enumerate(items):
+                is_last = i == len(items) - 1
+                current_prefix = "└── " if is_last else "├── "
+                contents.append(f"{prefix}{current_prefix}{item.name}")
+
+                if item.is_dir() and current_depth < depth - 1:
+                    extension = "    " if is_last else "│   "
+                    contents.extend(build_tree(item, prefix + extension, current_depth + 1))
+        except PermissionError:
+            pass
+
+        return contents
+
+    tree_lines = [str(p.relative_to(PROJECT_ROOT.parent)) + "/"]
+    tree_lines.extend(build_tree(p))
+    return "\n".join(tree_lines)
+
+
 def init_project_root():
     PROJECT_ROOT.mkdir(parents=True, exist_ok=True)
     return str(PROJECT_ROOT)
-
-#ADDED THIS
-init_project_root()
