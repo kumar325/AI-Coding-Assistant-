@@ -7,7 +7,12 @@ from langgraph.prebuilt import create_react_agent
 
 from agent.prompts import *
 from agent.states import *
-from agent.tools import write_file, read_file, get_current_directory, list_file, print_tree
+from agent.tools import (write_file, write_file_no_prefix,
+                        read_file, read_file_no_prefix,
+                        get_current_directory, get_current_directory_no_prefix,
+                        list_file, list_file_no_prefix,
+                        print_tree, print_tree_no_prefix,
+                        open_file, open_file_no_prefix)
 
 _ = load_dotenv()
 
@@ -62,11 +67,53 @@ def coder_agent(state: dict) -> dict:
         "Use write_file(path, content) to save your changes."
     )
 
-    coder_tools = [read_file, write_file, list_file, get_current_directory, print_tree]
+    coder_tools = [
+        read_file, read_file_no_prefix,
+        write_file, write_file_no_prefix,
+        list_file, list_file_no_prefix,
+        get_current_directory, get_current_directory_no_prefix,
+        print_tree, print_tree_no_prefix,
+        open_file, open_file_no_prefix
+    ]
     react_agent = create_react_agent(llm, coder_tools)
 
-    react_agent.invoke({"messages": [{"role": "system", "content": system_prompt},
-                                     {"role": "user", "content": user_prompt}]})
+    # CRITICAL: Add retry logic to handle model failures
+    max_retries = 3
+    success = False
+
+    for attempt in range(max_retries):
+        try:
+            react_agent.invoke({
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ]
+            })
+            success = True
+            break  # Success - exit retry loop
+
+        except Exception as e:
+            error_msg = str(e)
+            print(f"\n⚠️  Attempt {attempt + 1}/{max_retries} failed")
+            print(f"Error: {error_msg[:150]}...")
+
+            if attempt < max_retries - 1:
+                print("🔄 Retrying with simplified prompt...")
+                # Simplify the prompt for retry
+                user_prompt = (
+                    f"Create file: {current_task.filepath}\n"
+                    f"Task: {current_task.task_description}\n"
+                    "IMPORTANT: Call write_file with ONLY path and content parameters. No other parameters."
+                )
+            else:
+                print(f"❌ Failed after {max_retries} attempts. Skipping this step.")
+                # Try to write a basic file directly as fallback
+                try:
+                    basic_content = f"// TODO: Implement {current_task.task_description}\n"
+                    write_file.invoke({"path": current_task.filepath, "content": basic_content})
+                    print(f"✅ Created placeholder file: {current_task.filepath}")
+                except:
+                    print(f"⚠️  Could not create placeholder file")
 
     coder_state.current_step_idx += 1
     return {"coder_state": coder_state}
