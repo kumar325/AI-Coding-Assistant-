@@ -26,7 +26,7 @@ else:
     st.stop()
 
 st.set_page_config(
-    page_title="Coder Buddy",
+    page_title="AI Coding Assistant",
     page_icon="🤖",
     layout="wide"
 )
@@ -35,7 +35,7 @@ st.set_page_config(
 init_project_root()
 
 # Title and description
-st.title("🤖 Coder Buddy")
+st.title("🤖 AI Coding Assistant")
 st.markdown("**AI-powered code generator** - Transform your ideas into working code!")
 
 # Sidebar with example prompts only
@@ -250,6 +250,6 @@ if st.button("🚀 Generate Project", type="primary", use_container_width=True):
 st.markdown("---")
 st.markdown("""
 <div style='text-align: center; color: #666;'>
-    <p>Made with ❤️ using LangGraph • Powered by Groq AI</p>
+    <p>Made with ❤️ using LangGraph • Created by Karan Kumar</p>
 </div>
 """, unsafe_allow_html=True)
